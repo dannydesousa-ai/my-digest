@@ -1,0 +1,616 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="My Digest">
+<title>My Digest</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ink: #1a1208;
+    --paper: #f5f0e8;
+    --cream: #ede7d9;
+    --accent: #c8522a;
+    --gold: #b8963e;
+    --muted: #8a7e6e;
+    --border: #d4c9b5;
+    --safe-top: env(safe-area-inset-top, 0px);
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  html, body { height: 100%; overscroll-behavior: none; }
+
+  body {
+    background: var(--paper); color: var(--ink);
+    font-family: 'DM Sans', sans-serif; min-height: 100vh;
+    padding: calc(var(--safe-top) + 16px) 16px calc(var(--safe-bottom) + 60px);
+  }
+
+  body::before {
+    content: ''; position: fixed; inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+    pointer-events: none; z-index: 0; opacity: 0.5;
+  }
+
+  .container { max-width: 680px; margin: 0 auto; position: relative; z-index: 1; }
+
+  header {
+    text-align: center; padding: 24px 0 22px;
+    border-bottom: 2px solid var(--ink); margin-bottom: 24px;
+  }
+  .masthead-rule { width: 100%; height: 1px; background: var(--ink); margin-bottom: 8px; }
+  .masthead-label { font-size: 10px; letter-spacing: 4px; text-transform: uppercase; color: var(--muted); font-weight: 500; margin-bottom: 6px; }
+  h1 { font-family: 'Playfair Display', serif; font-size: clamp(28px, 8vw, 48px); line-height: 1.05; letter-spacing: -1px; }
+  .subtitle { font-size: 12px; color: var(--muted); margin-top: 6px; letter-spacing: 0.5px; }
+
+  /* Sync bar */
+  .sync-bar {
+    display: flex; align-items: center; gap: 8px;
+    padding: 8px 12px; background: var(--cream);
+    border: 1px solid var(--border); border-radius: 4px;
+    margin-bottom: 18px; font-size: 12px; color: var(--muted); min-height: 38px;
+  }
+  .sync-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; background: var(--border); transition: background 0.3s; }
+  .sync-dot.synced { background: #5a9e6f; }
+  .sync-dot.syncing { background: var(--gold); animation: pulse 1s infinite; }
+  .sync-dot.error { background: var(--accent); }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+  .sync-text { flex: 1; }
+  .sync-action { font-size: 11px; font-weight: 600; color: var(--accent); cursor: pointer; letter-spacing: 0.5px; white-space: nowrap; background: none; border: none; font-family: inherit; padding: 0; }
+
+  /* Setup screen */
+  .setup-screen {
+    background: white; border: 1px solid var(--border);
+    border-radius: 4px; padding: 24px 20px; margin-bottom: 20px;
+  }
+  .setup-icon { font-size: 32px; margin-bottom: 10px; text-align: center; }
+  .setup-title { font-family: 'Playfair Display', serif; font-size: 20px; margin-bottom: 8px; text-align: center; }
+  .setup-desc { font-size: 13px; color: var(--muted); line-height: 1.6; margin-bottom: 18px; text-align: center; }
+
+  .setup-steps { margin-bottom: 20px; }
+  .step {
+    display: flex; gap: 12px; align-items: flex-start;
+    padding: 10px 0; border-bottom: 1px solid var(--border);
+  }
+  .step:last-child { border-bottom: none; }
+  .step-num {
+    width: 22px; height: 22px; border-radius: 50%; background: var(--ink);
+    color: var(--paper); font-size: 11px; font-weight: 600;
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 1px;
+  }
+  .step-text { font-size: 13px; line-height: 1.5; color: var(--ink); }
+  .step-text a { color: var(--accent); }
+  .step-text code { background: var(--cream); padding: 1px 5px; border-radius: 2px; font-size: 12px; }
+
+  .input-row { display: flex; gap: 8px; margin-top: 4px; }
+  .text-input {
+    flex: 1; border: 1px solid var(--border); border-radius: 3px;
+    padding: 10px 12px; font-family: 'DM Sans', sans-serif;
+    font-size: 13px; color: var(--ink); background: var(--paper); outline: none;
+    transition: border-color 0.2s;
+  }
+  .text-input:focus { border-color: var(--accent); }
+  .text-input::placeholder { color: var(--muted); }
+
+  /* Main app */
+  #appScreen { display: none; }
+
+  .input-section {
+    background: white; border: 1px solid var(--border);
+    border-radius: 4px; padding: 18px; margin-bottom: 16px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+  }
+  .section-label {
+    font-size: 10px; letter-spacing: 3px; text-transform: uppercase;
+    color: var(--accent); font-weight: 500; margin-bottom: 12px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .section-label::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+  .mode-toggle { display: flex; border: 1px solid var(--border); border-radius: 3px; overflow: hidden; margin-bottom: 14px; }
+  .mode-btn {
+    flex: 1; padding: 8px; font-size: 11px; letter-spacing: 1px;
+    text-transform: uppercase; font-weight: 500; border: none;
+    cursor: pointer; background: transparent; color: var(--muted);
+    font-family: 'DM Sans', sans-serif; transition: all 0.2s;
+  }
+  .mode-btn.active { background: var(--ink); color: var(--paper); }
+
+  textarea {
+    width: 100%; min-height: 100px; border: 1px solid var(--border); border-radius: 3px;
+    padding: 11px; font-family: 'DM Sans', sans-serif; font-size: 14px;
+    color: var(--ink); background: var(--paper); resize: vertical; line-height: 1.7;
+    outline: none; transition: border-color 0.2s;
+  }
+  textarea:focus { border-color: var(--accent); }
+  textarea::placeholder { color: var(--muted); }
+  .hint { font-size: 11px; color: var(--muted); margin-top: 8px; line-height: 1.5; }
+
+  .controls { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
+  .btn {
+    font-family: 'DM Sans', sans-serif; font-size: 11px; font-weight: 600;
+    letter-spacing: 1.5px; text-transform: uppercase; border: none;
+    border-radius: 3px; cursor: pointer; padding: 13px 18px; transition: all 0.2s;
+  }
+  .btn-primary { background: var(--ink); color: var(--paper); flex: 1; }
+  .btn-primary:hover { background: var(--accent); }
+  .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; }
+  .btn-secondary { background: transparent; color: var(--muted); border: 1px solid var(--border); }
+  .btn-secondary:hover { border-color: var(--muted); color: var(--ink); }
+
+  .saved-item {
+    display: flex; align-items: center; gap: 8px;
+    padding: 8px 10px; background: var(--cream);
+    border-radius: 3px; margin-bottom: 6px;
+    font-size: 12px; color: var(--muted); animation: fadeUp 0.2s ease;
+  }
+  .saved-item span { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .remove-btn { background: none; border: none; cursor: pointer; color: var(--border); font-size: 14px; line-height: 1; padding: 0; transition: color 0.2s; }
+  .remove-btn:hover { color: var(--accent); }
+
+  .loading { display: none; text-align: center; padding: 36px 20px; }
+  .loading.visible { display: block; }
+  .spinner { width: 26px; height: 26px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; margin: 0 auto 14px; animation: spin 0.8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .loading-text { font-family: 'Playfair Display', serif; font-style: italic; color: var(--muted); font-size: 15px; }
+
+  .error-msg { background: #fdf0ec; border: 1px solid #f0c4b4; border-radius: 3px; padding: 11px 14px; font-size: 13px; color: var(--accent); margin-bottom: 14px; display: none; line-height: 1.5; }
+  .error-msg.visible { display: block; }
+
+  .digest-output { display: none; }
+  .digest-output.visible { display: block; }
+
+  .digest-header { border-top: 3px double var(--ink); border-bottom: 3px double var(--ink); padding: 14px 0; margin-bottom: 24px; text-align: center; }
+  .digest-title { font-family: 'Playfair Display', serif; font-size: 20px; }
+  .digest-meta { font-size: 11px; letter-spacing: 2px; text-transform: uppercase; color: var(--muted); margin-top: 5px; }
+
+  .digest-intro { font-family: 'Playfair Display', serif; font-style: italic; font-size: 15px; line-height: 1.75; color: var(--ink); padding: 18px; border-left: 3px solid var(--gold); background: var(--cream); margin-bottom: 24px; border-radius: 0 3px 3px 0; }
+
+  .article-card { border-bottom: 1px solid var(--border); padding: 22px 0; animation: fadeUp 0.4s ease both; }
+  .article-card:last-child { border-bottom: none; }
+  @keyframes fadeUp { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
+
+  .article-num { font-size: 10px; letter-spacing: 2px; text-transform: uppercase; color: var(--accent); font-weight: 500; margin-bottom: 5px; }
+  .article-title { font-family: 'Playfair Display', serif; font-size: 18px; line-height: 1.3; margin-bottom: 6px; }
+  .article-source { font-size: 11px; color: var(--muted); letter-spacing: 0.5px; margin-bottom: 9px; }
+  .article-summary { font-size: 14px; line-height: 1.75; color: #3a3020; }
+  .article-tags { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 10px; }
+  .tag { font-size: 10px; letter-spacing: 1px; text-transform: uppercase; color: var(--muted); border: 1px solid var(--border); padding: 3px 7px; border-radius: 2px; }
+  .article-link { display: inline-block; margin-top: 10px; font-size: 11px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--accent); text-decoration: none; font-weight: 600; border-bottom: 1px solid transparent; transition: border-color 0.2s; }
+  .article-link:hover { border-bottom-color: var(--accent); }
+
+  .digest-footer { margin-top: 28px; padding-top: 18px; border-top: 1px solid var(--border); text-align: center; }
+  .reading-time { font-size: 11px; letter-spacing: 1px; color: var(--muted); text-transform: uppercase; margin-bottom: 12px; }
+  .clear-after-digest { margin-top: 12px; font-size: 11px; color: var(--muted); background: none; border: none; cursor: pointer; font-family: inherit; text-decoration: underline; }
+
+  @media (max-width: 480px) { .controls { flex-direction: column; } .btn-primary { flex: none; } }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <header>
+    <div class="masthead-rule"></div>
+    <div class="masthead-label">Your personal reading companion</div>
+    <h1>My <em style="font-family:'Playfair Display',serif;font-style:italic">Digest</em></h1>
+    <p class="subtitle">Save links anywhere · Generate summaries · Sync across devices</p>
+    <div class="masthead-rule" style="margin-top:10px;margin-bottom:0"></div>
+  </header>
+
+  <!-- Setup screen -->
+  <div id="setupScreen" class="setup-screen">
+    <div class="setup-icon">🔑</div>
+    <div class="setup-title">Set up sync</div>
+    <p class="setup-desc">Create a free account at <strong><a href="https://jsonbin.io" target="_blank">jsonbin.io</a></strong> to get a sync key — then all your devices share the same article list automatically.</p>
+
+    <div class="setup-steps">
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-text">Go to <a href="https://jsonbin.io" target="_blank"><strong>jsonbin.io</strong></a> → Sign up free → go to <strong>API Keys</strong> → copy your <strong>Master Key</strong></div>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-text">Paste your Master Key below and tap Connect. That's it — same key on every device syncs everything.</div>
+      </div>
+    </div>
+
+    <div style="margin-bottom:12px">
+      <label style="font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--muted);font-weight:500;display:block;margin-bottom:6px">JSONBin Master Key</label>
+      <div class="input-row">
+        <input type="password" class="text-input" id="apiKeyInput" placeholder="Paste your Master Key here…" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+      </div>
+    </div>
+    <div style="margin-bottom:16px">
+      <label style="font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--muted);font-weight:500;display:block;margin-bottom:4px">Bin ID <span style="font-weight:300;text-transform:none;letter-spacing:0">(optional — leave blank on first device, copy from another device to sync)</span></label>
+      <div class="input-row">
+        <input type="text" class="text-input" id="binIdInput" placeholder="e.g. 64a3f2b1e2e8a539d3f0c1a2" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+      </div>
+    </div>
+    <button class="btn btn-primary" style="width:100%;margin-bottom:10px" onclick="connectSync()">Connect & Sync</button>
+    <p style="font-size:11px;color:var(--muted);line-height:1.5">Your key is stored only on this device. JSONBin is free for personal use.</p>
+
+    <!-- Bin ID shown here once connected -->
+    <div id="binIdDisplay" style="display:none;margin-top:16px;padding-top:16px;border-top:1px solid var(--border)">
+      <label style="font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);font-weight:500;display:block;margin-bottom:6px">Your Bin ID</label>
+      <p style="font-size:11px;color:var(--muted);margin-bottom:8px;line-height:1.5">Copy this to set up sync on another device — paste it into the Bin ID field above.</p>
+      <div style="display:flex;align-items:center;gap:8px;background:var(--cream);border:1px solid var(--border);border-radius:3px;padding:8px 10px">
+        <span id="binIdText" style="font-family:monospace;font-size:12px;color:var(--ink);word-break:break-all;flex:1"></span>
+        <button onclick="copyBinId()" style="flex-shrink:0;font-size:10px;letter-spacing:1px;text-transform:uppercase;background:var(--ink);color:var(--paper);border:none;border-radius:2px;padding:5px 9px;cursor:pointer;font-family:inherit;font-weight:600" id="copyBinBtn">Copy</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main app -->
+  <div id="appScreen">
+    <div class="input-section">
+      <div class="section-label">Add articles</div>
+      <div class="mode-toggle">
+        <button class="mode-btn active" id="pasteMode" onclick="setMode('paste')">Paste links</button>
+        <button class="mode-btn" id="savedMode" onclick="setMode('saved')">Saved (<span id="savedCount">0</span>)</button>
+      </div>
+      <div id="pasteArea">
+        <textarea id="urlInput" placeholder="Paste one or more article URLs here — one per line.&#10;&#10;On Chrome iOS: Share → Copy Link, then paste here."></textarea>
+        <p class="hint">💡 <strong>Chrome iOS:</strong> tap Share → Copy Link → paste here. Syncs across all your devices automatically.</p>
+      </div>
+      <div id="savedArea" style="display:none">
+        <div id="savedList"></div>
+      </div>
+    </div>
+
+    <div class="error-msg" id="errorMsg"></div>
+
+    <div class="controls">
+      <button class="btn btn-primary" id="generateBtn" onclick="generate()">✦ Generate My Digest</button>
+      <button class="btn btn-secondary" onclick="addLinks()">Save Links</button>
+      <button class="btn btn-secondary" onclick="clearAll()">Clear All</button>
+    </div>
+
+    <div class="loading" id="loading">
+      <div class="spinner"></div>
+      <p class="loading-text" id="loadingText">Curating your digest…</p>
+    </div>
+
+    <div class="digest-output" id="digestOutput"></div>
+  </div>
+
+  <!-- Sync bar fixed at bottom -->
+  <div class="sync-bar" id="syncBar" style="position:fixed;bottom:0;left:0;right:0;margin:0;border-radius:0;border-left:none;border-right:none;border-bottom:none;z-index:100;justify-content:center;gap:12px;padding:10px 20px;backdrop-filter:blur(8px);background:rgba(237,231,217,0.95)">
+    <div class="sync-dot" id="syncDot"></div>
+    <span class="sync-text" id="syncText" style="flex:none">Setting up…</span>
+    <button class="sync-action" onclick="loadFromBin()" id="refreshAction" style="display:none">↻ Refresh</button>
+    <span style="color:var(--border)" id="syncDivider" style="display:none">·</span>
+    <button class="sync-action" onclick="showSetup()" id="syncAction" style="display:none">⚙ Setup</button>
+  </div>
+
+</div>
+
+<script>
+// ─── STATE ───────────────────────────────────────────────────────────────────
+let savedArticles = [];
+let binId = null;
+let apiKey = null;
+let currentMode = 'paste';
+let isSaving = false;
+
+const JSONBIN_BASE = 'https://api.jsonbin.io/v3';
+
+// ─── INIT ────────────────────────────────────────────────────────────────────
+window.addEventListener('load', async () => {
+  apiKey = localStorage.getItem('digest_apiKey');
+  binId  = localStorage.getItem('digest_binId');
+
+  if (apiKey && binId) {
+    hideSetup();
+    await loadFromBin();
+  } else if (apiKey) {
+    hideSetup();
+    await createBin();
+  } else {
+    setSyncStatus('idle', 'Not connected — set up sync below');
+  }
+});
+
+function hideSetup() {
+  document.getElementById('setupScreen').style.display = 'none';
+  document.getElementById('appScreen').style.display = 'block';
+  document.getElementById('syncAction').style.display = 'inline';
+  document.getElementById('refreshAction').style.display = 'inline';
+  document.getElementById('syncDivider').style.display = 'inline';
+  if (binId) {
+    document.getElementById('binIdDisplay').style.display = 'block';
+    document.getElementById('binIdText').textContent = binId;
+  }
+}
+
+function showSetup() {
+  document.getElementById('setupScreen').style.display = 'block';
+  document.getElementById('appScreen').style.display = 'none';
+  document.getElementById('syncAction').style.display = 'none';
+  document.getElementById('refreshAction').style.display = 'none';
+  document.getElementById('syncDivider').style.display = 'none';
+  setSyncStatus('idle', 'Not connected');
+  if (apiKey) document.getElementById('apiKeyInput').value = apiKey;
+  if (binId) document.getElementById('binIdInput').value = binId;
+}
+
+function copyBinId() {
+  navigator.clipboard.writeText(binId).then(() => {
+    const btn = document.getElementById('copyBinBtn');
+    btn.textContent = 'Copied ✓';
+    setTimeout(() => btn.textContent = 'Copy', 2000);
+  });
+}
+
+// ─── JSONBIN SYNC ─────────────────────────────────────────────────────────────
+async function connectSync() {
+  const key = document.getElementById('apiKeyInput').value.trim();
+  const manualBinId = document.getElementById('binIdInput').value.trim();
+  if (!key) { alert('Please paste your JSONBin Master Key first.'); return; }
+  apiKey = key;
+  localStorage.setItem('digest_apiKey', apiKey);
+  if (manualBinId) {
+    // Use the provided bin ID (from another device)
+    binId = manualBinId;
+    localStorage.setItem('digest_binId', binId);
+    hideSetup();
+    setSyncStatus('syncing', 'Connecting to existing bin…');
+    await loadFromBin();
+  } else {
+    // Create a new bin
+    localStorage.removeItem('digest_binId');
+    binId = null;
+    hideSetup();
+    setSyncStatus('syncing', 'Connecting…');
+    await createBin();
+  }
+}
+
+async function createBin() {
+  setSyncStatus('syncing', 'Creating your sync storage…');
+  try {
+    const resp = await fetch(`${JSONBIN_BASE}/b`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Master-Key': apiKey,
+        'X-Bin-Name': 'my-digest-articles',
+        'X-Bin-Private': 'true'
+      },
+      body: JSON.stringify({ articles: [] })
+    });
+    if (!resp.ok) throw new Error(await resp.text());
+    const data = await resp.json();
+    binId = data.metadata.id;
+    localStorage.setItem('digest_binId', binId);
+    savedArticles = [];
+    updateSavedCount();
+    setSyncStatus('synced', 'Synced · 0 articles saved');
+  } catch(e) {
+    setSyncStatus('error', 'Connection failed — check your API key');
+    showError('Could not connect to JSONBin. Double-check your Master Key and try again.');
+    showSetup();
+  }
+}
+
+async function loadFromBin() {
+  if (!binId || !apiKey) return;
+  setSyncStatus('syncing', 'Syncing…');
+  try {
+    const resp = await fetch(`${JSONBIN_BASE}/b/${binId}/latest`, {
+      headers: { 'X-Master-Key': apiKey }
+    });
+    if (!resp.ok) throw new Error(await resp.text());
+    const data = await resp.json();
+    savedArticles = data.record?.articles || [];
+    updateSavedCount();
+    const time = new Date().toLocaleTimeString('en-AU', { hour:'2-digit', minute:'2-digit' });
+    setSyncStatus('synced', `Synced · ${savedArticles.length} article${savedArticles.length !== 1 ? 's' : ''} · ${time}`);
+    if (currentMode === 'saved') renderSavedList();
+  } catch(e) {
+    setSyncStatus('error', 'Could not load — check connection');
+  }
+}
+
+async function saveToBin() {
+  if (!binId || !apiKey || isSaving) return;
+  isSaving = true;
+  setSyncStatus('syncing', 'Saving…');
+  try {
+    const resp = await fetch(`${JSONBIN_BASE}/b/${binId}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Master-Key': apiKey
+      },
+      body: JSON.stringify({ articles: savedArticles })
+    });
+    if (!resp.ok) throw new Error(await resp.text());
+    setSyncStatus('synced', `Synced · ${savedArticles.length} article${savedArticles.length !== 1 ? 's' : ''} saved`);
+  } catch(e) {
+    setSyncStatus('error', 'Save failed — check connection');
+  } finally {
+    isSaving = false;
+  }
+}
+
+// ─── UI HELPERS ───────────────────────────────────────────────────────────────
+function setSyncStatus(state, text) {
+  const dot = document.getElementById('syncDot');
+  const textEl = document.getElementById('syncText');
+  dot.className = 'sync-dot';
+  if (state === 'synced') dot.classList.add('synced');
+  else if (state === 'syncing') dot.classList.add('syncing');
+  else if (state === 'error') dot.classList.add('error');
+  textEl.textContent = text;
+}
+
+function showError(msg) { const el = document.getElementById('errorMsg'); el.textContent = msg; el.className = 'error-msg visible'; }
+function hideError() { document.getElementById('errorMsg').className = 'error-msg'; }
+
+function updateSavedCount() { document.getElementById('savedCount').textContent = savedArticles.length; }
+
+function setMode(mode) {
+  currentMode = mode;
+  document.getElementById('pasteMode').classList.toggle('active', mode === 'paste');
+  document.getElementById('savedMode').classList.toggle('active', mode === 'saved');
+  document.getElementById('pasteArea').style.display = mode === 'paste' ? 'block' : 'none';
+  document.getElementById('savedArea').style.display = mode === 'saved' ? 'block' : 'none';
+  if (mode === 'saved') {
+    // Auto-refresh from JSONBin when viewing saved articles
+    loadFromBin().then(() => renderSavedList());
+  }
+}
+
+function renderSavedList() {
+  const list = document.getElementById('savedList');
+  if (!savedArticles.length) {
+    list.innerHTML = '<p style="font-size:13px;color:var(--muted);text-align:center;padding:16px 0">No articles saved yet.<br>Switch to "Paste links" to add some.</p>';
+    return;
+  }
+  list.innerHTML = savedArticles.map((url, i) => `
+    <div class="saved-item">
+      <span title="${url}">${url}</span>
+      <button class="remove-btn" onclick="removeArticle(${i})">✕</button>
+    </div>
+  `).join('');
+}
+
+function parseUrls(text) {
+  return text.split(/[\n\s]+/).map(s => s.trim()).filter(s => {
+    try { return ['http:','https:'].includes(new URL(s).protocol); } catch { return false; }
+  });
+}
+
+async function addLinks() {
+  hideError();
+  const urls = parseUrls(document.getElementById('urlInput').value);
+  if (!urls.length) { showError('No valid URLs found. Please paste one or more article links.'); return; }
+  const newUrls = urls.filter(u => !savedArticles.includes(u));
+  if (!newUrls.length) { showError('These links are already saved.'); return; }
+  savedArticles = [...savedArticles, ...newUrls];
+  document.getElementById('urlInput').value = '';
+  updateSavedCount();
+  setMode('saved');
+  await saveToBin();
+}
+
+async function removeArticle(i) {
+  savedArticles.splice(i, 1);
+  updateSavedCount();
+  renderSavedList();
+  await saveToBin();
+}
+
+async function clearAll() {
+  if (savedArticles.length && !confirm(`Clear all ${savedArticles.length} saved article${savedArticles.length!==1?'s':''}?`)) return;
+  savedArticles = [];
+  updateSavedCount();
+  document.getElementById('digestOutput').className = 'digest-output';
+  document.getElementById('urlInput').value = '';
+  renderSavedList();
+  await saveToBin();
+}
+
+// ─── DIGEST GENERATION ───────────────────────────────────────────────────────
+async function generate() {
+  hideError();
+  const pasteUrls = parseUrls(document.getElementById('urlInput').value);
+  const allUrls = [...new Set([...savedArticles, ...pasteUrls])];
+  if (!allUrls.length) { showError('Please paste or save at least one article URL before generating.'); return; }
+
+  document.getElementById('loading').className = 'loading visible';
+  document.getElementById('digestOutput').className = 'digest-output';
+  document.getElementById('generateBtn').disabled = true;
+
+  const mode = allUrls.length <= 3 ? 'daily' : 'weekly';
+  const today = new Date().toLocaleDateString('en-AU', { weekday:'long', day:'numeric', month:'long', year:'numeric' });
+  const msgs = ['Reading between the lines…','Curating your digest…','Distilling the essentials…','Almost ready…'];
+  let mi = 0;
+  const interval = setInterval(() => { document.getElementById('loadingText').textContent = msgs[++mi % msgs.length]; }, 2500);
+
+  const prompt = `You are a brilliant editorial curator creating a personalised reading digest. The user saved ${allUrls.length} article(s) from Chrome's "For You" recommendation feed.
+
+URLs:
+${allUrls.map((u,i) => `${i+1}. ${u}`).join('\n')}
+
+Return ONLY valid JSON — no markdown, no preamble.
+
+{
+  "mode": "${mode}",
+  "date": "${today}",
+  "articleCount": ${allUrls.length},
+  "intro": "A warm, witty 2-sentence editorial intro about the themes across these articles, as if from a brilliant magazine editor. Reference actual apparent topics from the URLs.",
+  "articles": [
+    {
+      "num": 1,
+      "url": "full url here",
+      "title": "Engaging headline inferred from the URL",
+      "source": "Domain formatted nicely e.g. The Guardian, BBC News, TechCrunch",
+      "summary": "3–4 sentence summary of what this article likely covers. Be specific and insightful — mention key points, context, and why it matters. Engaging editorial voice.",
+      "tags": ["Topic", "Category"],
+      "readingMins": 4
+    }
+  ],
+  "totalReadingMins": 20,
+  "closingNote": "One witty sentence signing off."
+}`;
+
+  try {
+    const resp = await fetch('/.netlify/functions/digest', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prompt })
+    });
+    const data = await resp.json();
+    const text = (data.text || '').replace(/```json|```/g,'').trim();
+    renderDigest(JSON.parse(text));
+  } catch(e) {
+    showError('Something went wrong generating your digest. Please try again.');
+  } finally {
+    clearInterval(interval);
+    document.getElementById('loading').className = 'loading';
+    document.getElementById('generateBtn').disabled = false;
+  }
+}
+
+function renderDigest(d) {
+  const out = document.getElementById('digestOutput');
+  out.innerHTML = `
+    <div class="digest-header">
+      <div class="digest-title">${d.mode === 'daily' ? 'Daily Brief' : 'Weekly Digest'}</div>
+      <div class="digest-meta">${d.date} &nbsp;·&nbsp; ${d.articleCount} article${d.articleCount!==1?'s':''} &nbsp;·&nbsp; ~${d.totalReadingMins} min read</div>
+    </div>
+    <div class="digest-intro">${d.intro}</div>
+    ${(d.articles||[]).map((a,i) => `
+      <div class="article-card" style="animation-delay:${i*0.08}s">
+        <div class="article-num">Article ${a.num}</div>
+        <div class="article-title">${a.title}</div>
+        <div class="article-source">${a.source} &nbsp;·&nbsp; ~${a.readingMins} min read</div>
+        <div class="article-summary">${a.summary}</div>
+        <div class="article-tags">${(a.tags||[]).map(t=>`<span class="tag">${t}</span>`).join('')}</div>
+        <a href="${a.url}" target="_blank" class="article-link">Read full article →</a>
+      </div>
+    `).join('')}
+    <div class="digest-footer">
+      <div class="reading-time">Total reading time: ~${d.totalReadingMins} minutes</div>
+      <p style="font-style:italic;color:var(--muted);font-size:13px;margin-bottom:14px">${d.closingNote}</p>
+      <button class="btn btn-secondary" style="font-size:11px;padding:10px 16px" onclick="copyDigest(event)">Copy Digest Text</button>
+      <br><button class="clear-after-digest" onclick="clearAll()">Clear saved articles after reading</button>
+    </div>`;
+  out.className = 'digest-output visible';
+  out.scrollIntoView({ behavior:'smooth', block:'start' });
+}
+
+function copyDigest(e) {
+  navigator.clipboard.writeText(document.getElementById('digestOutput').innerText).then(() => {
+    e.target.textContent = 'Copied ✓';
+    setTimeout(() => e.target.textContent = 'Copy Digest Text', 2000);
+  });
+}
+</script>
+</body>
+</html>
