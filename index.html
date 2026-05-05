@@ -566,6 +566,10 @@ Return ONLY valid JSON — no markdown, no preamble.
       body: JSON.stringify({ prompt })
     });
     const data = await resp.json();
+    if (!resp.ok || data.error) {
+      showError('API error: ' + (data.error || 'Unknown error'));
+      return;
+    }
     const text = (data.text || '').replace(/```json|```/g,'').trim();
     renderDigest(JSON.parse(text));
   } catch(e) {
