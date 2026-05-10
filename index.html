@@ -570,8 +570,23 @@ Return ONLY valid JSON — no markdown, no preamble.
       showError('API error: ' + (data.error || 'Unknown error'));
       return;
     }
-    const text = (data.text || '').replace(/```json|```/g,'').trim();
-    renderDigest(JSON.parse(text));
+    let rawText = (data.text || '').replace(/```json|```/g,'').trim();
+    // Find the JSON object in the response in case there's extra text around it
+    const jsonStart = rawText.indexOf('{');
+    const jsonEnd = rawText.lastIndexOf('}');
+    if (jsonStart === -1 || jsonEnd === -1) {
+      showError('Could not find JSON in response. Raw: ' + rawText.substring(0, 200));
+      return;
+    }
+    rawText = rawText.substring(jsonStart, jsonEnd + 1);
+    let digest;
+    try {
+      digest = JSON.parse(rawText);
+    } catch(parseErr) {
+      showError('JSON parse failed: ' + parseErr.message + ' — Raw: ' + rawText.substring(0, 200));
+      return;
+    }
+    renderDigest(digest);
   } catch(e) {
     showError('Something went wrong generating your digest. Please try again.');
   } finally {
