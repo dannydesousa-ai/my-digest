@@ -66,7 +66,25 @@ exports.handler = async (event) => {
       };
     }
 
-    return { statusCode: 200, headers, body: JSON.stringify({ text }) };
+    // Clean and extract just the JSON object
+    let cleaned = text.replace(/```json|```/g, '').trim();
+    const start = cleaned.indexOf('{');
+    const end = cleaned.lastIndexOf('}');
+    if (start !== -1 && end !== -1) {
+      cleaned = cleaned.substring(start, end + 1);
+    }
+
+    // Validate it parses before returning
+    try {
+      JSON.parse(cleaned);
+    } catch(e) {
+      // Try to fix common issues - trailing commas, unescaped chars
+      cleaned = cleaned
+        .replace(/,(\s*[}\]])/g, '$1')  // remove trailing commas
+        .replace(/[\u0000-\u001F\u007F-\u009F]/g, ' '); // remove control chars
+    }
+
+    return { statusCode: 200, headers, body: JSON.stringify({ text: cleaned }) };
 
   } catch (err) {
     return {
